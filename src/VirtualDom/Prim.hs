@@ -64,6 +64,19 @@ properties :: Lens' HTMLElement Immutable.Map
 properties f (HTMLElement vNode) =
   fmap (HTMLElement . ffiVNodeSetProperties vNode)
        (f (ffiVNodeGetProperties vNode))
+       
+foreign import javascript safe
+  "Immutable.Map($1.properties.attributes)"
+  ffiVNodeGetAttributes :: JSRef VNode -> Immutable.Map
+
+foreign import javascript safe
+  "new VNode($1.tagName, Immutable.Map($1.properties).set('attributes', $2).toJS(), $1.children, $1.key)"
+  ffiVNodeSetAttributes :: JSRef VNode -> Immutable.Map -> JSRef VNode
+
+attributes :: Lens' HTMLElement Immutable.Map
+attributes f (HTMLElement vNode) =
+  fmap (HTMLElement . ffiVNodeSetAttributes vNode)
+       (f (ffiVNodeGetAttributes vNode))
 
 foreign import javascript safe
   "$1.children"

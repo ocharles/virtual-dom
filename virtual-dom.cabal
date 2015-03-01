@@ -30,6 +30,7 @@ library
     Data.Immutable
     VirtualDom
     VirtualDom.HTML
+    VirtualDom.HTML.Attributes
     VirtualDom.Prim
 
 executable tests

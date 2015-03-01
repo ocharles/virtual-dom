@@ -4,9 +4,11 @@ module VirtualDom.HTML.Attributes where
 
 import Control.Lens
 import GHCJS.Foreign
+import GHCJS.Marshal
 import GHCJS.Types
+import System.IO.Unsafe
 import VirtualDom.Prim
-
+  
 abbr_ :: Traversal' HTMLElement (Maybe JSString)
 abbr_ = attributes . at "abbr"
 
@@ -43,8 +45,23 @@ challenge_ = attributes . at "challenge"
 charset_ :: Traversal' HTMLElement (Maybe JSString)
 charset_ = attributes . at "charset"
 
+-- | This 'Traversal' directly sets the @checked@ attribute on the HTML element,
+-- but this is likely not what you want.
+--
+-- See 'checked'.
 checked_ :: Traversal' HTMLElement (Maybe JSString)
 checked_ = attributes . at "checked"
+
+-- | Directly set the @checked@ property of the DOM element. Unlike 'checked_',
+-- setting this will be reflected in the browser, regardless of the users
+-- previous interaction with the component.
+checked :: Lens' HTMLElement Bool
+checked =
+  properties .
+  at "checked" .
+  -- XXX Not a valid iso!
+  iso (maybe False (const True))
+      (Just . castRef . unsafePerformIO . toJSRef)
 
 cite_ :: Traversal' HTMLElement (Maybe JSString)
 cite_ = attributes . at "cite"

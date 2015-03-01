@@ -30,8 +30,8 @@ foreign import javascript safe
 
 -- | Construct a new 'HTML' fragment consisting of a given element, with no
 -- child content or attributes.
-emptyElement :: ToJSString t => t -> HTML
-emptyElement = HTML . ffiNewVNode . toJSString
+emptyElement :: JSString -> HTML
+emptyElement = HTML . ffiNewVNode
 
 instance IsString HTML where
   fromString = text

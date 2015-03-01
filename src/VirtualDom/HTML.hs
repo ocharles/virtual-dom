@@ -1,3 +1,5 @@
+{-# LANGUAGE OverloadedStrings #-}
+
 module VirtualDom.HTML where
 
 import VirtualDom.Prim

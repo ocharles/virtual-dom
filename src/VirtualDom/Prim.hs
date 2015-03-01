@@ -9,6 +9,7 @@ import System.IO.Unsafe
 import Data.String (IsString(fromString))
 import GHCJS.Foreign
 import GHCJS.DOM.Event
+import qualified GHCJS.DOM.HTMLElement as DOM
 import GHCJS.Types
 import qualified Data.Immutable as Immutable
 
@@ -120,7 +121,7 @@ namespace f (HTMLElement vNode) =
 
 foreign import javascript safe
   "new VNode($1.tagName, Immutable.Map($1.properties).set('ev-' + $2, evHook($3)).toJS(), $1.children, $1.key, $1.namespace)"
-  ffiSetVNodeEvent :: JSRef VNode -> JSString -> JSRef a -> JSRef VNode
+  ffiSetVNodeEvent :: JSRef VNode -> JSString -> JSFun (JSRef Event -> IO ()) -> JSRef VNode
   
 on :: MonadState HTMLElement m => JSString -> (JSRef Event -> IO ()) -> m ()
 on ev f =
@@ -129,3 +130,16 @@ on ev f =
               (ffiSetVNodeEvent vnode
                                 ev
                                 (unsafePerformIO (syncCallback1 AlwaysRetain True f))))
+
+foreign import javascript safe
+  "new VNode($1.tagName, Immutable.Map($1.properties).set('hook-' + $2, Object.create({ hook: $3 })).toJS(), $1.children, $1.key, $1.namespace)"
+  ffiRegisterVNodeHook :: JSRef VNode -> JSString -> JSFun (JSRef DOM.HTMLElement -> JSString -> IO ()) -> JSRef VNode
+  
+registerHook :: MonadState HTMLElement m
+             => JSString -> (JSRef DOM.HTMLElement -> JSString -> IO ()) -> m ()
+registerHook hookName f =
+  modify (\(HTMLElement vnode) ->
+            HTMLElement
+              (ffiRegisterVNodeHook vnode
+                                    hookName
+                                    (unsafePerformIO (syncCallback2 AlwaysRetain True f))))

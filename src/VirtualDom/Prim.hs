@@ -8,6 +8,7 @@ import Control.Monad.State
 import System.IO.Unsafe
 import Data.String (IsString(fromString))
 import GHCJS.Foreign
+import GHCJS.DOM.Event
 import GHCJS.Types
 import qualified Data.Immutable as Immutable
 
@@ -121,14 +122,10 @@ foreign import javascript safe
   "new VNode($1.tagName, Immutable.Map($1.properties).set('ev-' + $2, evHook($3)).toJS(), $1.children, $1.key, $1.namespace)"
   ffiSetVNodeEvent :: JSRef VNode -> JSString -> JSRef a -> JSRef VNode
   
-on :: MonadState HTMLElement m => JSString -> IO () -> m ()
+on :: MonadState HTMLElement m => JSString -> (JSRef Event -> IO ()) -> m ()
 on ev f =
   modify (\(HTMLElement vnode) ->
             HTMLElement
-              (ffiSetVNodeEvent
-                 vnode
-                 ev
-                 (unsafePerformIO
-                    (syncCallback1 AlwaysRetain
-                                   True
-                                   (const f)))))
+              (ffiSetVNodeEvent vnode
+                                ev
+                                (unsafePerformIO (syncCallback1 AlwaysRetain True f))))

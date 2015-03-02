@@ -29,11 +29,13 @@ instance At Map where
     where mv = lookup k m
 
 lookup :: JSString -> Map -> Maybe JSString
-lookup k m = let v = jsLookup k m
-             in if isNull v
-                  then Nothing
-                  else Just v
+lookup k m =
+  if k `member` m
+     then Just (jsLookup k m)
+     else Nothing
 
+foreign import javascript safe "$2.has($1)" member :: JSString -> Map -> Bool
+                       
 foreign import javascript safe
   "Immutable.Map()" empty :: Map
 

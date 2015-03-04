@@ -3,15 +3,16 @@
 
 module VirtualDom.Prim where
 
+import Control.Applicative
 import Control.Lens
 import Control.Monad.State
-import System.IO.Unsafe
 import Data.String (IsString(fromString))
-import GHCJS.Foreign
 import GHCJS.DOM.Event
-import qualified GHCJS.DOM.HTMLElement as DOM
+import GHCJS.Foreign
 import GHCJS.Types
+import System.IO.Unsafe
 import qualified Data.Immutable as Immutable
+import qualified GHCJS.DOM.HTMLElement as DOM
 
 -- | An opaque data-type representing a foreign @VNode@ object.
 data VNode

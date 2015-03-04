@@ -1,0 +1,26 @@
+#+TITLE: =virtual-dom=
+
+This library provides Haskell (GHCJS) bindings to the [[https://github.com/Matt-Esch/virtual-dom][virtual-dom]] project. virtual-dom is a set of Javascript libraries to allow one to build a functional representation of the browser DOM in a declarative manner, and efficiently render these changes into the DOM.
+
+These bindings provide:
+
+- A [[http://hackage.haskell.org/package/lens][lens]] interface to building elements and setting their attributes.
+- A [[http://hackage.haskell.org/package/lucid][lucid]]-like DSL for building HTML documents - with functions for all HTML 5 elements and attributes.
+- The ability to register [[https://github.com/Matt-Esch/virtual-dom/blob/master/docs/hooks.md][hooks]].
+- The ability to attach event handlers by using [[https://github.com/Raynos/dom-delegator][dom-delegator]].
+
+For a small example of how this library can be used, see below
+
+#+BEGIN_SRC haskell
+{-# LANGUAGE OverloadedStrings #-}
+import VirtualDom
+
+main :: IO ()
+main =
+  do body <- bodyContainer
+     initDomDelegator
+     renderTo body
+              (with body_
+                    (on "click" (const (putStrLn "Ouch")))
+                    [into h1_ ["Heading"]])
+#+END_SRC

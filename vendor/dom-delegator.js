@@ -1,28 +1,26 @@
-!function(e){if("object"==typeof exports&&"undefined"!=typeof module)module.exports=e();else if("function"==typeof define&&define.amd)define([],e);else{var f;"undefined"!=typeof window?f=window:"undefined"!=typeof global?f=global:"undefined"!=typeof self&&(f=self),f.DOMDelegator=e()}}(function(){var define,module,exports;return (function e(t,n,r){function s(o,u){if(!n[o]){if(!t[o]){var a=typeof require=="function"&&require;if(!u&&a)return a(o,!0);if(i)return i(o,!0);var f=new Error("Cannot find module '"+o+"'");throw f.code="MODULE_NOT_FOUND",f}var l=n[o]={exports:{}};t[o][0].call(l.exports,function(e){var n=t[o][1][e];return s(n?n:e)},l,l.exports,e,t,n,r)}return n[o].exports}var i=typeof require=="function"&&require;for(var o=0;o<r.length;o++)s(r[o]);return s})({1:[function(require,module,exports){
-
-},{}],2:[function(require,module,exports){
-var DataSet = require("data-set")
+(function(f){if(typeof exports==="object"&&typeof module!=="undefined"){module.exports=f()}else if(typeof define==="function"&&define.amd){define([],f)}else{var g;if(typeof window!=="undefined"){g=window}else if(typeof global!=="undefined"){g=global}else if(typeof self!=="undefined"){g=self}else{g=this}g.DOMDelegator = f()}})(function(){var define,module,exports;return (function e(t,n,r){function s(o,u){if(!n[o]){if(!t[o]){var a=typeof require=="function"&&require;if(!u&&a)return a(o,!0);if(i)return i(o,!0);var f=new Error("Cannot find module '"+o+"'");throw f.code="MODULE_NOT_FOUND",f}var l=n[o]={exports:{}};t[o][0].call(l.exports,function(e){var n=t[o][1][e];return s(n?n:e)},l,l.exports,e,t,n,r)}return n[o].exports}var i=typeof require=="function"&&require;for(var o=0;o<r.length;o++)s(r[o]);return s})({1:[function(require,module,exports){
+var EvStore = require("ev-store")
 
 module.exports = addEvent
 
 function addEvent(target, type, handler) {
-    var ds = DataSet(target)
-    var events = ds[type]
+    var events = EvStore(target)
+    var event = events[type]
 
-    if (!events) {
-        ds[type] = handler
-    } else if (Array.isArray(events)) {
-        if (events.indexOf(handler) === -1) {
-            events.push(handler)
+    if (!event) {
+        events[type] = handler
+    } else if (Array.isArray(event)) {
+        if (event.indexOf(handler) === -1) {
+            event.push(handler)
         }
-    } else if (events !== handler) {
-        ds[type] = [events, handler]
+    } else if (event !== handler) {
+        events[type] = [event, handler]
     }
 }
 
-},{"data-set":7}],3:[function(require,module,exports){
+},{"ev-store":5}],2:[function(require,module,exports){
 var globalDocument = require("global/document")
-var DataSet = require("data-set")
+var EvStore = require("ev-store")
 var createStore = require("weakmap-shim/create-store")
 
 var addEvent = require("./add-event.js")
@@ -34,6 +32,10 @@ var HANDLER_STORE = createStore()
 module.exports = DOMDelegator
 
 function DOMDelegator(document) {
+    if (!(this instanceof DOMDelegator)) {
+        return new DOMDelegator(document);
+    }
+
     document = document || globalDocument
 
     this.target = document.documentElement
@@ -55,14 +57,11 @@ DOMDelegator.allocateHandle =
     }
 
 DOMDelegator.transformHandle =
-    function transformHandle(handle, lambda) {
+    function transformHandle(handle, broadcast) {
         var func = HANDLER_STORE(handle).func
 
         return this.allocateHandle(function (ev) {
-            var result = lambda(ev)
-            if (result) {
-                func(result)
-            }
+            broadcast(ev, func);
         })
     }
 
@@ -87,11 +86,15 @@ DOMDelegator.prototype.removeGlobalEventListener =
     }
 
 DOMDelegator.prototype.listenTo = function listenTo(eventName) {
-    if (this.events[eventName]) {
-        return
+    if (!(eventName in this.events)) {
+        this.events[eventName] = 0;
     }
 
-    this.events[eventName] = true
+    this.events[eventName]++;
+
+    if (this.events[eventName] !== 1) {
+        return
+    }
 
     var listener = this.rawEventListeners[eventName]
     if (!listener) {
@@ -103,11 +106,20 @@ DOMDelegator.prototype.listenTo = function listenTo(eventName) {
 }
 
 DOMDelegator.prototype.unlistenTo = function unlistenTo(eventName) {
-    if (!this.events[eventName]) {
+    if (!(eventName in this.events)) {
+        this.events[eventName] = 0;
+    }
+
+    if (this.events[eventName] === 0) {
+        throw new Error("already unlistened to event.");
+    }
+
+    this.events[eventName]--;
+
+    if (this.events[eventName] !== 0) {
         return
     }
 
-    this.events[eventName] = false
     var listener = this.rawEventListeners[eventName]
 
     if (!listener) {
@@ -154,14 +166,14 @@ function findAndInvokeListeners(elem, ev, eventName) {
 
 function getListener(target, type) {
     // terminate recursion if parent is `null`
-    if (target === null) {
+    if (target === null || typeof target === "undefined") {
         return null
     }
 
-    var ds = DataSet(target)
+    var events = EvStore(target)
     // fetch list of handler fns for this event
-    var handler = ds[type]
-    var allHandler = ds.event
+    var handler = events[type]
+    var allHandler = events.event
 
     if (!handler && !allHandler) {
         return getListener(target.parentNode, type)
@@ -195,14 +207,14 @@ function Handle() {
     this.type = "dom-delegator-handle"
 }
 
-},{"./add-event.js":2,"./proxy-event.js":13,"./remove-event.js":14,"data-set":7,"global/document":8,"weakmap-shim/create-store":11}],4:[function(require,module,exports){
+},{"./add-event.js":1,"./proxy-event.js":13,"./remove-event.js":14,"ev-store":5,"global/document":8,"weakmap-shim/create-store":11}],3:[function(require,module,exports){
 var Individual = require("individual")
 var cuid = require("cuid")
 var globalDocument = require("global/document")
 
 var DOMDelegator = require("./dom-delegator.js")
 
-var versionKey = "11"
+var versionKey = "13"
 var cacheKey = "__DOM_DELEGATOR_CACHE@" + versionKey
 var cacheTokenKey = "__DOM_DELEGATOR_CACHE_TOKEN@" + versionKey
 var delegatorCache = Individual(cacheKey, {
@@ -257,7 +269,7 @@ function Delegator(opts) {
 Delegator.allocateHandle = DOMDelegator.allocateHandle;
 Delegator.transformHandle = DOMDelegator.transformHandle;
 
-},{"./dom-delegator.js":3,"cuid":5,"global/document":8,"individual":9}],5:[function(require,module,exports){
+},{"./dom-delegator.js":2,"cuid":4,"global/document":8,"individual":9}],4:[function(require,module,exports){
 /**
  * cuid.js
  * Collision-resistant UID generator for browsers and node.
@@ -369,51 +381,76 @@ Delegator.transformHandle = DOMDelegator.transformHandle;
 
 }(this.applitude || this));
 
-},{}],6:[function(require,module,exports){
-module.exports = createHash
+},{}],5:[function(require,module,exports){
+'use strict';
 
-function createHash(elem) {
-    var attributes = elem.attributes
-    var hash = {}
+var OneVersionConstraint = require('individual/one-version');
 
-    if (attributes === null || attributes === undefined) {
-        return hash
+var MY_VERSION = '7';
+OneVersionConstraint('ev-store', MY_VERSION);
+
+var hashKey = '__EV_STORE_KEY@' + MY_VERSION;
+
+module.exports = EvStore;
+
+function EvStore(elem) {
+    var hash = elem[hashKey];
+
+    if (!hash) {
+        hash = elem[hashKey] = {};
     }
 
-    for (var i = 0; i < attributes.length; i++) {
-        var attr = attributes[i]
-
-        if (attr.name.substr(0,5) !== "data-") {
-            continue
-        }
-
-        hash[attr.name.substr(5)] = attr.value
-    }
-
-    return hash
+    return hash;
 }
 
+},{"individual/one-version":7}],6:[function(require,module,exports){
+(function (global){
+'use strict';
+
+/*global window, global*/
+
+var root = typeof window !== 'undefined' ?
+    window : typeof global !== 'undefined' ?
+    global : {};
+
+module.exports = Individual;
+
+function Individual(key, value) {
+    if (key in root) {
+        return root[key];
+    }
+
+    root[key] = value;
+
+    return value;
+}
+
+}).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
 },{}],7:[function(require,module,exports){
-var createStore = require("weakmap-shim/create-store")
-var Individual = require("individual")
+'use strict';
 
-var createHash = require("./create-hash.js")
+var Individual = require('./index.js');
 
-var hashStore = Individual("__DATA_SET_WEAKMAP@3", createStore())
+module.exports = OneVersion;
 
-module.exports = DataSet
+function OneVersion(moduleName, version, defaultValue) {
+    var key = '__INDIVIDUAL_ONE_VERSION_' + moduleName;
+    var enforceKey = key + '_ENFORCE_SINGLETON';
 
-function DataSet(elem) {
-    var store = hashStore(elem)
+    var versionValue = Individual(enforceKey, version);
 
-    if (!store.hash) {
-        store.hash = createHash(elem)
+    if (versionValue !== version) {
+        throw new Error('Can only have one copy of ' +
+            moduleName + '.\n' +
+            'You already have version ' + versionValue +
+            ' installed.\n' +
+            'This means you cannot install version ' + version);
     }
 
-    return store.hash
+    return Individual(key, defaultValue);
 }
 
-},{"./create-hash.js":6,"individual":9,"weakmap-shim/create-store":11}],8:[function(require,module,exports){
+},{"./index.js":6}],8:[function(require,module,exports){
 (function (global){
 var topLevel = typeof global !== 'undefined' ? global :
     typeof window !== 'undefined' ? window : {}
@@ -432,7 +469,7 @@ if (typeof document !== 'undefined') {
 }
 
 }).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{"min-document":1}],9:[function(require,module,exports){
+},{"min-document":15}],9:[function(require,module,exports){
 (function (global){
 var root = typeof window !== 'undefined' ?
     window : typeof global !== 'undefined' ?
@@ -488,7 +525,9 @@ function createStore() {
     var key = {};
 
     return function (obj) {
-        if (typeof obj !== 'object' || obj === null) {
+        if ((typeof obj !== 'object' || obj === null) &&
+            typeof obj !== 'function'
+        ) {
             throw new Error('Weakmap-shim: Key must be object')
         }
 
@@ -597,25 +636,27 @@ function KeyEvent(ev) {
 inherits(KeyEvent, ProxyEvent)
 
 },{"inherits":10}],14:[function(require,module,exports){
-var DataSet = require("data-set")
+var EvStore = require("ev-store")
 
 module.exports = removeEvent
 
 function removeEvent(target, type, handler) {
-    var ds = DataSet(target)
-    var events = ds[type]
+    var events = EvStore(target)
+    var event = events[type]
 
-    if (!events) {
+    if (!event) {
         return
-    } else if (Array.isArray(events)) {
-        var index = events.indexOf(handler)
+    } else if (Array.isArray(event)) {
+        var index = event.indexOf(handler)
         if (index !== -1) {
-            events.splice(index, 1)
+            event.splice(index, 1)
         }
-    } else if (events === handler) {
-        ds[type] = null
+    } else if (event === handler) {
+        events[type] = null
     }
 }
 
-},{"data-set":7}]},{},[4])(4)
+},{"ev-store":5}],15:[function(require,module,exports){
+
+},{}]},{},[3])(3)
 });

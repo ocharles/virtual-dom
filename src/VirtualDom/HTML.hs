@@ -1,330 +1,413 @@
+{-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE FunctionalDependencies #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE TypeFamilies #-}
+{-# LANGUAGE UndecidableInstances #-}
 
 module VirtualDom.HTML where
 
+import Control.Applicative
+import Control.Lens hiding (children, coerce)
+import Control.Monad.Trans.State.Lazy
+import Control.Monad.Trans.Writer.Strict
+import Data.Coerce
+import Data.FMList
+import Data.Monoid
+import Data.String
+import GHCJS.Foreign
+import GHCJS.Types
+import System.IO.Unsafe
 import VirtualDom.Prim
 
-a_ :: HTML
-a_ = emptyElement "a"
+newtype HTML m =
+  HTML (m (FMList Node))
+
+instance (Applicative m) => Monoid (HTML m) where
+  mempty = HTML (pure mempty)
+  HTML l `mappend` HTML r =
+    HTML (liftA2 mappend l r)
+
+instance (Applicative m) => IsString (HTML m) where
+  fromString s = HTML (pure (pure (fromString s)))
+
+runHTML :: (Functor m,Monoid a) => HTML m -> (Node -> a) -> m a
+runHTML (HTML m) run =
+  fmap (\f -> unFM f run) m
+
+runHTMLInto :: Functor m
+             => Node -> HTML m -> m Node
+runHTMLInto el html =
+  fmap (into el)
+       (runHTML html pure)
+  where
+  into :: Node -> [Node] -> Node
+  into el xs =
+    el & _HTMLElement %~
+    (children .~
+     unsafePerformIO (toArray (coerce xs)))
+
+into :: Applicative m
+     => HTML m -> HTML m -> HTML m
+into (HTML outer) (HTML inner) =
+  HTML ((\o i ->
+            let xs = toList i
+            in fmap (\h ->
+                       h & _HTMLElement %~
+                       (children .~
+                        unsafePerformIO (toArray (coerce xs))))
+                    o) <$>
+         outer <*>
+         inner)
 
-abbr_ :: HTML
-abbr_ = emptyElement "abbr"
+with :: Applicative m => HTML m -> State HTMLElement () -> HTML m -> HTML m
+with (HTML html) s =
+  into (HTML (fmap (fmap (over _HTMLElement (execState s))) html))
 
-address_ :: HTML
-address_ = emptyElement "address"
+embed :: Functor m => m (HTML Identity) -> HTML m
+embed =
+  HTML .
+  fmap (\x ->
+          case x of
+            HTML (Identity l) -> l)
 
-area_ :: HTML
-area_ = emptyElement "area"
+--------------------------------------------------------------------------------
+class Term arg result | result -> arg where
+  term :: JSString
+       -> arg
+       -> result
 
-article_ :: HTML
-article_ = emptyElement "article"
+instance (Applicative m, f ~ HTML m,r ~ ()) => Term (StateT HTMLElement Identity r) (f -> HTML m) where
+  term name =
+    with (HTML (pure (pure (emptyElement name))))
 
-aside_ :: HTML
-aside_ = emptyElement "aside"
+instance Applicative m => Term (HTML m) (HTML m) where
+  term name =
+    into (HTML (pure (pure (emptyElement name))))
 
-audio_ :: HTML
-audio_ = emptyElement "audio"
+--------------------------------------------------------------------------------
 
-b_ :: HTML
-b_ = emptyElement "b"
+a_ :: (Term arg result) => arg -> result
+a_ = term "a"
 
-base_ :: HTML
-base_ = emptyElement "base"
+abbr_ :: (Term arg result) => arg -> result
+abbr_ = term "abbr"
 
-bdi_ :: HTML
-bdi_ = emptyElement "bdi"
+address_ :: (Term arg result) => arg -> result
+address_ = term "address"
 
-bdo_ :: HTML
-bdo_ = emptyElement "bdo"
+area_ :: (Term arg result) => arg -> result
+area_ = term "area"
 
-blockquote_ :: HTML
-blockquote_ = emptyElement "blockquote"
+article_ :: (Term arg result) => arg -> result
+article_ = term "article"
 
-body_ :: HTML
-body_ = emptyElement "body"
+aside_ :: (Term arg result) => arg -> result
+aside_ = term "aside"
 
-br_ :: HTML
-br_ = emptyElement "br"
+audio_ :: (Term arg result) => arg -> result
+audio_ = term "audio"
 
-button_ :: HTML
-button_ = emptyElement "button"
+b_ :: (Term arg result) => arg -> result
+b_ = term "b"
 
-canvas_ :: HTML
-canvas_ = emptyElement "canvas"
+base_ :: (Term arg result) => arg -> result
+base_ = term "base"
 
-caption_ :: HTML
-caption_ = emptyElement "caption"
+bdi_ :: (Term arg result) => arg -> result
+bdi_ = term "bdi"
 
-cite_ :: HTML
-cite_ = emptyElement "cite"
+bdo_ :: (Term arg result) => arg -> result
+bdo_ = term "bdo"
 
-code_ :: HTML
-code_ = emptyElement "code"
+blockquote_ :: (Term arg result) => arg -> result
+blockquote_ = term "blockquote"
 
-col_ :: HTML
-col_ = emptyElement "col"
+body_ :: (Term arg result) => arg -> result
+body_ = term "body"
 
-colgroup_ :: HTML
-colgroup_ = emptyElement "colgroup"
+br_ :: (Term arg result) => arg -> result
+br_ = term "br"
 
-data_ :: HTML
-data_ = emptyElement "data"
+button_ :: (Term arg result) => arg -> result
+button_ = term "button"
 
-datalist_ :: HTML
-datalist_ = emptyElement "datalist"
+canvas_ :: (Term arg result) => arg -> result
+canvas_ = term "canvas"
 
-dd_ :: HTML
-dd_ = emptyElement "dd"
+caption_ :: (Term arg result) => arg -> result
+caption_ = term "caption"
 
-del_ :: HTML
-del_ = emptyElement "del"
+cite_ :: (Term arg result) => arg -> result
+cite_ = term "cite"
 
-dfn_ :: HTML
-dfn_ = emptyElement "dfn"
+code_ :: (Term arg result) => arg -> result
+code_ = term "code"
 
-div_ :: HTML
-div_ = emptyElement "div"
+col_ :: (Term arg result) => arg -> result
+col_ = term "col"
 
-dl_ :: HTML
-dl_ = emptyElement "dl"
+colgroup_ :: (Term arg result) => arg -> result
+colgroup_ = term "colgroup"
 
-dt_ :: HTML
-dt_ = emptyElement "dt"
+data_ :: (Term arg result) => arg -> result
+data_ = term "data"
 
-em_ :: HTML
-em_ = emptyElement "em"
+datalist_ :: (Term arg result) => arg -> result
+datalist_ = term "datalist"
 
-embed_ :: HTML
-embed_ = emptyElement "embed"
+dd_ :: (Term arg result) => arg -> result
+dd_ = term "dd"
 
-fieldset_ :: HTML
-fieldset_ = emptyElement "fieldset"
+del_ :: (Term arg result) => arg -> result
+del_ = term "del"
 
-figcaption_ :: HTML
-figcaption_ = emptyElement "figcaption"
+dfn_ :: (Term arg result) => arg -> result
+dfn_ = term "dfn"
 
-figure_ :: HTML
-figure_ = emptyElement "figure"
+div_ :: (Term arg result) => arg -> result
+div_ = term "div"
 
-footer_ :: HTML
-footer_ = emptyElement "footer"
+dl_ :: (Term arg result) => arg -> result
+dl_ = term "dl"
 
-form_ :: HTML
-form_ = emptyElement "form"
+dt_ :: (Term arg result) => arg -> result
+dt_ = term "dt"
 
-h1_ :: HTML
-h1_ = emptyElement "h1"
+em_ :: (Term arg result) => arg -> result
+em_ = term "em"
 
-h2_ :: HTML
-h2_ = emptyElement "h2"
+embed_ :: (Term arg result) => arg -> result
+embed_ = term "embed"
 
-h3_ :: HTML
-h3_ = emptyElement "h3"
+fieldset_ :: (Term arg result) => arg -> result
+fieldset_ = term "fieldset"
 
-h4_ :: HTML
-h4_ = emptyElement "h4"
+figcaption_ :: (Term arg result) => arg -> result
+figcaption_ = term "figcaption"
 
-h5_ :: HTML
-h5_ = emptyElement "h5"
+figure_ :: (Term arg result) => arg -> result
+figure_ = term "figure"
 
-h6_ :: HTML
-h6_ = emptyElement "h6"
+footer_ :: (Term arg result) => arg -> result
+footer_ = term "footer"
 
-head_ :: HTML
-head_ = emptyElement "head"
+form_ :: (Term arg result) => arg -> result
+form_ = term "form"
 
-header_ :: HTML
-header_ = emptyElement "header"
+h1_ :: (Term arg result) => arg -> result
+h1_ = term "h1"
 
-hr_ :: HTML
-hr_ = emptyElement "hr"
+h2_ :: (Term arg result) => arg -> result
+h2_ = term "h2"
 
-html_ :: HTML
-html_ = emptyElement "html"
+h3_ :: (Term arg result) => arg -> result
+h3_ = term "h3"
 
-i_ :: HTML
-i_ = emptyElement "i"
+h4_ :: (Term arg result) => arg -> result
+h4_ = term "h4"
 
-iframe_ :: HTML
-iframe_ = emptyElement "iframe"
+h5_ :: (Term arg result) => arg -> result
+h5_ = term "h5"
 
-img_ :: HTML
-img_ = emptyElement "img"
+h6_ :: (Term arg result) => arg -> result
+h6_ = term "h6"
 
-input_ :: HTML
-input_ = emptyElement "input"
+head_ :: (Term arg result) => arg -> result
+head_ = term "head"
 
-ins_ :: HTML
-ins_ = emptyElement "ins"
+header_ :: (Term arg result) => arg -> result
+header_ = term "header"
 
-kbd_ :: HTML
-kbd_ = emptyElement "kbd"
+hr_ :: (Term arg result) => arg -> result
+hr_ = term "hr"
 
-keygen_ :: HTML
-keygen_ = emptyElement "keygen"
+html_ :: (Term arg result) => arg -> result
+html_ = term "html"
 
-label_ :: HTML
-label_ = emptyElement "label"
+i_ :: (Term arg result) => arg -> result
+i_ = term "i"
 
-legend_ :: HTML
-legend_ = emptyElement "legend"
+iframe_ :: (Term arg result) => arg -> result
+iframe_ = term "iframe"
 
-li_ :: HTML
-li_ = emptyElement "li"
+img_ :: (Term arg result) => arg -> result
+img_ = term "img"
 
-link_ :: HTML
-link_ = emptyElement "link"
+input_ :: (Term arg result) => arg -> result
+input_ = term "input"
 
-main_ :: HTML
-main_ = emptyElement "main"
+ins_ :: (Term arg result) => arg -> result
+ins_ = term "ins"
 
-map_ :: HTML
-map_ = emptyElement "map"
+kbd_ :: (Term arg result) => arg -> result
+kbd_ = term "kbd"
 
-mark_ :: HTML
-mark_ = emptyElement "mark"
+keygen_ :: (Term arg result) => arg -> result
+keygen_ = term "keygen"
 
-meta_ :: HTML
-meta_ = emptyElement "meta"
+label_ :: (Term arg result) => arg -> result
+label_ = term "label"
 
-meter_ :: HTML
-meter_ = emptyElement "meter"
+legend_ :: (Term arg result) => arg -> result
+legend_ = term "legend"
 
-nav_ :: HTML
-nav_ = emptyElement "nav"
+li_ :: (Term arg result) => arg -> result
+li_ = term "li"
 
-noscript_ :: HTML
-noscript_ = emptyElement "noscript"
+link_ :: (Term arg result) => arg -> result
+link_ = term "link"
 
-object_ :: HTML
-object_ = emptyElement "object"
+main_ :: (Term arg result) => arg -> result
+main_ = term "main"
 
-ol_ :: HTML
-ol_ = emptyElement "ol"
+map_ :: (Term arg result) => arg -> result
+map_ = term "map"
 
-optgroup_ :: HTML
-optgroup_ = emptyElement "optgroup"
+mark_ :: (Term arg result) => arg -> result
+mark_ = term "mark"
 
-option_ :: HTML
-option_ = emptyElement "option"
+meta_ :: (Term arg result) => arg -> result
+meta_ = term "meta"
 
-output_ :: HTML
-output_ = emptyElement "output"
+meter_ :: (Term arg result) => arg -> result
+meter_ = term "meter"
 
-p_ :: HTML
-p_ = emptyElement "p"
+nav_ :: (Term arg result) => arg -> result
+nav_ = term "nav"
 
-param_ :: HTML
-param_ = emptyElement "param"
+noscript_ :: (Term arg result) => arg -> result
+noscript_ = term "noscript"
 
-pre_ :: HTML
-pre_ = emptyElement "pre"
+object_ :: (Term arg result) => arg -> result
+object_ = term "object"
 
-progress_ :: HTML
-progress_ = emptyElement "progress"
+ol_ :: (Term arg result) => arg -> result
+ol_ = term "ol"
 
-q_ :: HTML
-q_ = emptyElement "q"
+optgroup_ :: (Term arg result) => arg -> result
+optgroup_ = term "optgroup"
 
-rb_ :: HTML
-rb_ = emptyElement "rb"
+option_ :: (Term arg result) => arg -> result
+option_ = term "option"
 
-rp_ :: HTML
-rp_ = emptyElement "rp"
+output_ :: (Term arg result) => arg -> result
+output_ = term "output"
 
-rt_ :: HTML
-rt_ = emptyElement "rt"
+p_ :: (Term arg result) => arg -> result
+p_ = term "p"
 
-rtc_ :: HTML
-rtc_ = emptyElement "rtc"
+param_ :: (Term arg result) => arg -> result
+param_ = term "param"
 
-ruby_ :: HTML
-ruby_ = emptyElement "ruby"
+pre_ :: (Term arg result) => arg -> result
+pre_ = term "pre"
 
-s_ :: HTML
-s_ = emptyElement "s"
+progress_ :: (Term arg result) => arg -> result
+progress_ = term "progress"
 
-samp_ :: HTML
-samp_ = emptyElement "samp"
+q_ :: (Term arg result) => arg -> result
+q_ = term "q"
 
-script_ :: HTML
-script_ = emptyElement "script"
+rb_ :: (Term arg result) => arg -> result
+rb_ = term "rb"
 
-section_ :: HTML
-section_ = emptyElement "section"
+rp_ :: (Term arg result) => arg -> result
+rp_ = term "rp"
 
-select_ :: HTML
-select_ = emptyElement "select"
+rt_ :: (Term arg result) => arg -> result
+rt_ = term "rt"
 
-small_ :: HTML
-small_ = emptyElement "small"
+rtc_ :: (Term arg result) => arg -> result
+rtc_ = term "rtc"
 
-source_ :: HTML
-source_ = emptyElement "source"
+ruby_ :: (Term arg result) => arg -> result
+ruby_ = term "ruby"
 
-span_ :: HTML
-span_ = emptyElement "span"
+s_ :: (Term arg result) => arg -> result
+s_ = term "s"
 
-strong_ :: HTML
-strong_ = emptyElement "strong"
+samp_ :: (Term arg result) => arg -> result
+samp_ = term "samp"
 
-style_ :: HTML
-style_ = emptyElement "style"
+script_ :: (Term arg result) => arg -> result
+script_ = term "script"
 
-sub_ :: HTML
-sub_ = emptyElement "sub"
+section_ :: (Term arg result) => arg -> result
+section_ = term "section"
 
-sup_ :: HTML
-sup_ = emptyElement "sup"
+select_ :: (Term arg result) => arg -> result
+select_ = term "select"
 
-table_ :: HTML
-table_ = emptyElement "table"
+small_ :: (Term arg result) => arg -> result
+small_ = term "small"
 
-tbody_ :: HTML
-tbody_ = emptyElement "tbody"
+source_ :: (Term arg result) => arg -> result
+source_ = term "source"
 
-td_ :: HTML
-td_ = emptyElement "td"
+span_ :: (Term arg result) => arg -> result
+span_ = term "span"
 
-template_ :: HTML
-template_ = emptyElement "template"
+strong_ :: (Term arg result) => arg -> result
+strong_ = term "strong"
 
-textarea_ :: HTML
-textarea_ = emptyElement "textarea"
+style_ :: (Term arg result) => arg -> result
+style_ = term "style"
 
-tfoot_ :: HTML
-tfoot_ = emptyElement "tfoot"
+sub_ :: (Term arg result) => arg -> result
+sub_ = term "sub"
 
-th_ :: HTML
-th_ = emptyElement "th"
+sup_ :: (Term arg result) => arg -> result
+sup_ = term "sup"
 
-thead_ :: HTML
-thead_ = emptyElement "thead"
+table_ :: (Term arg result) => arg -> result
+table_ = term "table"
 
-time_ :: HTML
-time_ = emptyElement "time"
+tbody_ :: (Term arg result) => arg -> result
+tbody_ = term "tbody"
 
-title_ :: HTML
-title_ = emptyElement "title"
+td_ :: (Term arg result) => arg -> result
+td_ = term "td"
 
-tr_ :: HTML
-tr_ = emptyElement "tr"
+template_ :: (Term arg result) => arg -> result
+template_ = term "template"
 
-track_ :: HTML
-track_ = emptyElement "track"
+textarea_ :: (Term arg result) => arg -> result
+textarea_ = term "textarea"
 
-u_ :: HTML
-u_ = emptyElement "u"
+tfoot_ :: (Term arg result) => arg -> result
+tfoot_ = term "tfoot"
 
-ul_ :: HTML
-ul_ = emptyElement "ul"
+th_ :: (Term arg result) => arg -> result
+th_ = term "th"
 
-var_ :: HTML
-var_ = emptyElement "var"
+thead_ :: (Term arg result) => arg -> result
+thead_ = term "thead"
 
-video_ :: HTML
-video_ = emptyElement "video"
+time_ :: (Term arg result) => arg -> result
+time_ = term "time"
 
-wbr_ :: HTML
-wbr_ = emptyElement "wbr"
+title_ :: (Term arg result) => arg -> result
+title_ = term "title"
 
+tr_ :: (Term arg result) => arg -> result
+tr_ = term "tr"
+
+track_ :: (Term arg result) => arg -> result
+track_ = term "track"
+
+u_ :: (Term arg result) => arg -> result
+u_ = term "u"
+
+ul_ :: (Term arg result) => arg -> result
+ul_ = term "ul"
+
+var_ :: (Term arg result) => arg -> result
+var_ = term "var"
+
+video_ :: (Term arg result) => arg -> result
+video_ = term "video"
+
+wbr_ :: (Term arg result) => arg -> result
+wbr_ = term "wbr"

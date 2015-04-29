@@ -8,6 +8,7 @@ license-file: LICENSE
 library
   build-depends:
     base >= 4 && < 5,
+    fmlist,
     ghcjs-base,
     ghcjs-dom,
     lens,

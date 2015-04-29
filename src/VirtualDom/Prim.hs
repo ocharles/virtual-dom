@@ -17,43 +17,45 @@ import qualified GHCJS.DOM.HTMLElement as DOM
 -- | An opaque data-type representing a foreign @VNode@ object.
 data VNode
 
--- | A fragment of HTML - either an element with attributes, or a piece of text.
-newtype HTML = HTML (JSRef VNode)
+-- | A HTML node - either an element with attributes, or a piece of text.
+newtype Node =
+  Node (JSRef VNode)
 
 foreign import javascript safe
   "new VText($1)" ffiNewVText :: JSString -> JSRef VNode
 
 -- | Construct a 'HTML' text node.
-text :: ToJSString t => t -> HTML
-text = HTML . ffiNewVText . toJSString
+text :: ToJSString t => t -> Node
+text = Node . ffiNewVText . toJSString
 
 foreign import javascript safe
   "new VNode($1)"
   ffiNewVNode :: JSString -> JSRef VNode
 
--- | Construct a new 'HTML' fragment consisting of a given element, with no
+-- | Construct a new 'HTML' element consisting of a given element, with no
 -- child content or attributes.
-emptyElement :: JSString -> HTML
-emptyElement = HTML . ffiNewVNode
+emptyElement :: JSString -> Node
+emptyElement = Node . ffiNewVNode
 
-instance IsString HTML where
+-- | Strings are considered HTML nodes by converting them to text nodes.
+instance IsString Node where
   fromString = text
 
--- | Witness that a fragment of 'HTML' is pointing to a VNode.
+-- | Witness that a 'HTML' node is pointing to a VNode.
 newtype HTMLElement = HTMLElement (JSRef VNode)
 
 foreign import javascript safe
   "$r = $1.type"
   ffiGetVNodeType :: JSRef VNode -> JSString
-                      
+
 -- A zero-or-one traversal into a 'HTML' fragment to determine if it is an
 -- element or not.
-_HTMLElement :: Traversal' HTML HTMLElement
-_HTMLElement f (HTML vNode)
+_HTMLElement :: Traversal' Node HTMLElement
+_HTMLElement f (Node vNode)
   | ffiGetVNodeType vNode == "VirtualNode" =
-    fmap (\(HTMLElement vNode') -> HTML vNode')
+    fmap (\(HTMLElement vNode') -> Node vNode')
          (f (HTMLElement vNode))
-  | otherwise = pure (HTML vNode)
+  | otherwise = pure (Node vNode)
 
 foreign import javascript safe
   "Immutable.Map($1.properties)"
@@ -67,7 +69,7 @@ properties :: Lens' HTMLElement Immutable.Map
 properties f (HTMLElement vNode) =
   fmap (HTMLElement . ffiVNodeSetProperties vNode)
        (f (ffiVNodeGetProperties vNode))
-       
+
 foreign import javascript safe
   "Immutable.Map($1.properties.attributes)"
   ffiVNodeGetAttributes :: JSRef VNode -> Immutable.Map
@@ -123,7 +125,7 @@ namespace f (HTMLElement vNode) =
 foreign import javascript safe
   "new VNode($1.tagName, Immutable.Map($1.properties).set('ev-' + $2, evHook($3)).toJS(), $1.children, $1.key, $1.namespace)"
   ffiSetVNodeEvent :: JSRef VNode -> JSString -> JSFun (JSRef Event -> IO ()) -> JSRef VNode
-  
+
 on :: MonadState HTMLElement m => JSString -> (JSRef Event -> IO ()) -> m ()
 on ev f =
   modify (\(HTMLElement vnode) ->
@@ -135,7 +137,7 @@ on ev f =
 foreign import javascript safe
   "new VNode($1.tagName, Immutable.Map($1.properties).set('hook-' + $2, Object.create({ hook: $3 })).toJS(), $1.children, $1.key, $1.namespace)"
   ffiRegisterVNodeHook :: JSRef VNode -> JSString -> JSFun (JSRef DOM.HTMLElement -> JSString -> IO ()) -> JSRef VNode
-  
+
 registerHook :: MonadState HTMLElement m
              => JSString -> (JSRef DOM.HTMLElement -> JSString -> IO ()) -> m ()
 registerHook hookName f =

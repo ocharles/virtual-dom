@@ -1,5 +1,7 @@
+{-# LANGUAGE OverloadedStrings #-}
+
 module VirtualDom
-       (module VirtualDom.HTML, with, into, renderTo, bodyContainer,
+       (module VirtualDom.HTML, renderTo, bodyContainer,
         newTopLevelContainer, on, DOMDelegator, initDomDelegator)
        where
 
@@ -7,29 +9,15 @@ import Control.Lens hiding (coerce, children)
 import Control.Monad.Trans.State.Strict
 import Data.Coerce
 import Data.IORef
-import GHCJS.DOM
+import GHCJS.DOM hiding (Node)
 import GHCJS.DOM.Document
 import GHCJS.DOM.Element
-import GHCJS.DOM.Node
+import GHCJS.DOM.Node hiding (Node)
 import GHCJS.Foreign
 import GHCJS.Types
 import System.IO.Unsafe
 import VirtualDom.HTML
 import VirtualDom.Prim
-
---------------------------------------------------------------------------------
-with :: HTML -> State HTMLElement () -> [HTML] -> HTML
-with el f xs =
-  el & _HTMLElement %~
-  (execState f .
-   (children .~
-    unsafePerformIO (toArray (coerce xs))))
-
-into :: HTML -> [HTML] -> HTML
-into el xs =
-  el & _HTMLElement %~
-  (children .~
-   unsafePerformIO (toArray (coerce xs)))
 
 --------------------------------------------------------------------------------
 data DOMDelegator
@@ -40,16 +28,16 @@ foreign import javascript unsafe
 
 --------------------------------------------------------------------------------
 -- An element in the DOM that we can render virtualdom elements to
-data VNodePresentation = VNodePresentation (IORef HTML) (IORef Element)
+data VNodePresentation = VNodePresentation (IORef Node) (IORef Element)
 
 foreign import javascript unsafe
   "vdom($1)"
-  ffiVDom :: HTML -> IO Element
+  ffiVDom :: Node -> IO Element
 
 data Diff
 foreign import javascript unsafe
   "$r = window.virtualDom.diff($1, $2)"
-  ffiVirtualDomDiff :: HTML -> HTML -> IO (JSRef Diff)
+  ffiVirtualDomDiff :: Node -> Node -> IO (JSRef Diff)
 
 foreign import javascript unsafe
   "window.virtualDom.patch($1, $2)"
@@ -58,7 +46,7 @@ foreign import javascript unsafe
 -- Render our internal HTML tree representation into a VNode. We first
 -- convert our HTML into a VTree, and then diff this against the container
 -- and apply the resulting updates.
-renderTo :: VNodePresentation -> HTML -> IO ()
+renderTo :: VNodePresentation -> Node -> IO ()
 renderTo (VNodePresentation ioref el) e =
   do oldVnode <- readIORef ioref
      patches <- ffiVirtualDomDiff oldVnode e
@@ -69,7 +57,7 @@ renderTo (VNodePresentation ioref el) e =
 
 newTopLevelContainer :: IO VNodePresentation
 newTopLevelContainer =
-  do initialVNode <- return div_
+  do initialVNode <- return (emptyElement "div")
      currentVNode <- newIORef initialVNode
      el <- ffiVDom initialVNode
      Just doc <- currentDocument
@@ -82,7 +70,7 @@ newTopLevelContainer =
 
 bodyContainer :: IO VNodePresentation
 bodyContainer =
-  do initialVNode <- return div_
+  do initialVNode <- return (emptyElement "div")
      currentVNode <- newIORef initialVNode
      Just doc <- currentDocument
      Just bodyNode <- documentGetBody doc

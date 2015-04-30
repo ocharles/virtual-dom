@@ -22,14 +22,14 @@ newtype Node =
   Node (JSRef VNode)
 
 foreign import javascript safe
-  "new VText($1)" ffiNewVText :: JSString -> JSRef VNode
+  "new virtualdom.VText($1)" ffiNewVText :: JSString -> JSRef VNode
 
 -- | Construct a 'HTML' text node.
 text :: ToJSString t => t -> Node
 text = Node . ffiNewVText . toJSString
 
 foreign import javascript safe
-  "new VNode($1)"
+  "new virtualdom.VNode($1)"
   ffiNewVNode :: JSString -> JSRef VNode
 
 -- | Construct a new 'HTML' element consisting of a given element, with no
@@ -62,7 +62,7 @@ foreign import javascript safe
   ffiVNodeGetProperties :: JSRef VNode -> Immutable.Map
 
 foreign import javascript safe
-  "new VNode($1.tagName, $2.toJS(), $1.children, $1.key, $1.namespace)"
+  "new virtualdom.VNode($1.tagName, $2.toJS(), $1.children, $1.key, $1.namespace)"
   ffiVNodeSetProperties :: JSRef VNode -> Immutable.Map -> JSRef VNode
 
 properties :: Lens' HTMLElement Immutable.Map
@@ -75,7 +75,7 @@ foreign import javascript safe
   ffiVNodeGetAttributes :: JSRef VNode -> Immutable.Map
 
 foreign import javascript safe
-  "new VNode($1.tagName, Immutable.Map($1.properties).set('attributes', $2).toJS(), $1.children, $1.key)"
+  "new virtualdom.VNode($1.tagName, Immutable.Map($1.properties).set('attributes', $2).toJS(), $1.children, $1.key)"
   ffiVNodeSetAttributes :: JSRef VNode -> Immutable.Map -> JSRef VNode
 
 attributes :: Lens' HTMLElement Immutable.Map
@@ -88,7 +88,7 @@ foreign import javascript safe
   ffiGetVNodeChildren :: JSRef VNode -> JSArray (JSRef VNode)
 
 foreign import javascript safe
-  "new VNode($1.tagName, $1.properties, $2, $1.key, $1.namespace)"
+  "new virtualdom.VNode($1.tagName, $1.properties, $2, $1.key, $1.namespace)"
   ffiSetVNodeChildren :: JSRef VNode -> JSArray (JSRef VNode) -> JSRef VNode
 
 children :: Lens' HTMLElement (JSArray (JSRef VNode))
@@ -101,7 +101,7 @@ foreign import javascript safe
   ffiGetVNodeKey :: JSRef VNode -> JSString
 
 foreign import javascript safe
-  "new VNode($1.tagName, $1.properties, $1.children, $2, $1.namespace)"
+  "new virtualdom.VNode($1.tagName, $1.properties, $1.children, $2, $1.namespace)"
   ffiSetVNodeKey :: JSRef VNode -> JSString -> JSRef VNode
 
 key :: Lens' HTMLElement JSString
@@ -114,7 +114,7 @@ foreign import javascript safe
   ffiGetVNodeNamespace :: JSRef VNode -> JSString
 
 foreign import javascript safe
-  "new VNode($1.tagName, $1.properties, $1.children, $1.children, $2)"
+  "new virtualdom.VNode($1.tagName, $1.properties, $1.children, $1.children, $2)"
   ffiSetVNodeNamespace :: JSRef VNode -> JSString -> JSRef VNode
 
 namespace :: Lens' HTMLElement JSString
@@ -123,7 +123,7 @@ namespace f (HTMLElement vNode) =
        (f (ffiGetVNodeKey vNode))
 
 foreign import javascript safe
-  "new VNode($1.tagName, Immutable.Map($1.properties).set('ev-' + $2, evHook($3)).toJS(), $1.children, $1.key, $1.namespace)"
+  "new virtualdom.VNode($1.tagName, Immutable.Map($1.properties).set('ev-' + $2, evHook($3)).toJS(), $1.children, $1.key, $1.namespace)"
   ffiSetVNodeEvent :: JSRef VNode -> JSString -> JSFun (JSRef Event -> IO ()) -> JSRef VNode
 
 on :: MonadState HTMLElement m => JSString -> (JSRef Event -> IO ()) -> m ()
@@ -135,7 +135,7 @@ on ev f =
                                 (unsafePerformIO (syncCallback1 AlwaysRetain True f))))
 
 foreign import javascript safe
-  "new VNode($1.tagName, Immutable.Map($1.properties).set('hook-' + $2, Object.create({ hook: $3 })).toJS(), $1.children, $1.key, $1.namespace)"
+  "new virtualdom.VNode($1.tagName, Immutable.Map($1.properties).set('hook-' + $2, Object.create({ hook: $3 })).toJS(), $1.children, $1.key, $1.namespace)"
   ffiRegisterVNodeHook :: JSRef VNode -> JSString -> JSFun (JSRef DOM.HTMLElement -> JSString -> IO ()) -> JSRef VNode
 
 registerHook :: MonadState HTMLElement m

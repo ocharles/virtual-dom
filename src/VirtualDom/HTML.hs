@@ -10,7 +10,7 @@ module VirtualDom.HTML where
 
 import Control.Applicative
 import Control.Lens hiding (children, coerce)
-import Control.Monad.Trans.State.Lazy
+import Control.Monad.Trans.State.Strict
 import Control.Monad.Trans.Writer.Strict
 import Data.Coerce
 import Data.FMList

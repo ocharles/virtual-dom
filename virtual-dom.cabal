@@ -20,13 +20,9 @@ library
     vendor/change-event.js
     vendor/dom-delegator.js
     vendor/ev-hook.js
-    vendor/h.js
-    vendor/immutable.min.js
-    vendor/vdom.js
-    vendor/virtualdom.js
-    vendor/vnode.js
-    vendor/vtext.js
     vendor/focus-hook.js
+    vendor/immutable.min.js
+    vendor/virtualdom.js
   exposed-modules:
     Data.Immutable
     VirtualDom

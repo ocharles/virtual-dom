@@ -31,16 +31,16 @@ foreign import javascript unsafe
 data VNodePresentation = VNodePresentation (IORef Node) (IORef Element)
 
 foreign import javascript unsafe
-  "vdom($1)"
+  "virtualdom.create($1)"
   ffiVDom :: Node -> IO Element
 
 data Diff
 foreign import javascript unsafe
-  "$r = window.virtualDom.diff($1, $2)"
+  "$r = virtualdom.diff($1, $2)"
   ffiVirtualDomDiff :: Node -> Node -> IO (JSRef Diff)
 
 foreign import javascript unsafe
-  "window.virtualDom.patch($1, $2)"
+  "virtualdom.patch($1, $2)"
   ffiVirtualDomPatch :: Element -> JSRef Diff -> IO Element
 
 -- Render our internal HTML tree representation into a VNode. We first

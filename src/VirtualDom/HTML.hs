@@ -72,6 +72,9 @@ embed =
           case x of
             HTML (Identity l) -> l)
 
+observeHTML :: Functor m => HTML m -> m (HTML Identity)
+observeHTML (HTML m) = fmap (HTML . Identity) m
+
 --------------------------------------------------------------------------------
 class Term arg result | result -> arg where
   term :: JSString

@@ -78,7 +78,7 @@ class Term arg result | result -> arg where
        -> arg
        -> result
 
-instance (Applicative m, f ~ HTML m,r ~ ()) => Term (StateT HTMLElement Identity r) (f -> HTML m) where
+instance (Applicative m,x ~ HTML m, x ~ y, a ~ ()) => Term (StateT HTMLElement Identity a) (x -> y) where
   term name =
     with (HTML (pure (pure (emptyElement name))))
 

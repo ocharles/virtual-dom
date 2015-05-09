@@ -8,7 +8,7 @@ import GHCJS.Marshal
 import GHCJS.Types
 import System.IO.Unsafe
 import VirtualDom.Prim
-  
+
 abbr_ :: Traversal' HTMLElement (Maybe JSString)
 abbr_ = attributes . at "abbr"
 
@@ -72,7 +72,7 @@ class_ = attributes . at "class"
 classes :: Traversal' HTMLElement [JSString]
 classes =
   class_ .
-  anon "" (== "") .
+  anon "" (isEmptyStr . fromJSString) .
   iso (map toJSString . words . fromJSString)
       (toJSString . unwords . map fromJSString)
   where isEmptyStr = (== ("" :: String))

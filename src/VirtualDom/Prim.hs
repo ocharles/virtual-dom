@@ -52,7 +52,7 @@ foreign import javascript safe
 -- element or not.
 _HTMLElement :: Traversal' Node HTMLElement
 _HTMLElement f (Node vNode)
-  | ffiGetVNodeType vNode == "VirtualNode" =
+  | fromJSString (ffiGetVNodeType vNode) == ("VirtualNode" :: String) =
     fmap (\(HTMLElement vNode') -> Node vNode')
          (f (HTMLElement vNode))
   | otherwise = pure (Node vNode)
